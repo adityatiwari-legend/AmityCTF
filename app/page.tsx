@@ -28,6 +28,9 @@ export default function Home() {
   }
 
   const handleStartChallenge = () => {
+    if (auth.currentUser) {
+      sessionStorage.removeItem(`flag-count:${auth.currentUser.uid}`)
+    }
     router.push("/challenge")
   }
 
