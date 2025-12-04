@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
 
@@ -17,6 +17,14 @@ import { auth } from "@/lib/firebase"
 import { usePresence } from "@/hooks/use-presence"
 
 export default function ChallengePage() {
+  return (
+    <Suspense fallback={<ChallengePageFallback />}>
+      <ChallengePageContent />
+    </Suspense>
+  )
+}
+
+function ChallengePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const challengeIdFromUrl = searchParams.get("id") || ""
@@ -334,6 +342,17 @@ export default function ChallengePage() {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+function ChallengePageFallback() {
+  return (
+    <div className="min-h-screen bg-[#f48120] flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <div className="w-16 h-16 rounded-full border-4 border-black border-t-transparent animate-spin mx-auto" />
+        <p className="text-sm uppercase tracking-[0.3em] text-black">Loading challenge...</p>
       </div>
     </div>
   )

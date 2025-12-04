@@ -7,6 +7,7 @@ import { AuthError, createUserWithEmailAndPassword, updateProfile } from "fireba
 import { doc, serverTimestamp, setDoc } from "firebase/firestore"
 
 import { auth, db } from "@/lib/firebase"
+import { syncPlayerProfile } from "@/lib/players"
 
 const mapSignupError = (code: string) => {
   switch (code) {
@@ -61,6 +62,10 @@ export default function SignupPage() {
         },
         { merge: true },
       )
+      await syncPlayerProfile(credential.user.uid, {
+        name: trimmedName || credential.user.displayName,
+        email: credential.user.email,
+      })
       console.log("Successfully wrote to Firestore!")
       setSuccess("Profile created! Launching the mission...")
       router.replace("/")

@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 
 import { auth } from "@/lib/firebase"
 import { usePresence } from "@/hooks/use-presence"
+import { syncPlayerProfile } from "@/lib/players"
 
 export default function Home() {
   const router = useRouter()
@@ -23,6 +25,10 @@ export default function Home() {
       }
       setUserId(user.uid)
       setIsReady(true)
+      syncPlayerProfile(user.uid, {
+        name: user.displayName,
+        email: user.email,
+      })
     })
 
     return () => unsubscribe()

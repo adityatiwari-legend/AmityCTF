@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { collection, onSnapshot, query, Timestamp } from "firebase/firestore"
+import { collection, deleteDoc, doc, onSnapshot, query, Timestamp } from "firebase/firestore"
 import {
   Activity,
   AlertCircle,
@@ -14,6 +14,7 @@ import {
   Shield,
   UserCheck,
   Users,
+  Trash2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -121,6 +122,8 @@ export default function AdminPortalPage() {
   const [leaderboardError, setLeaderboardError] = useState("")
   const [leaderboardReady, setLeaderboardReady] = useState(false)
   const [lastLeaderboardUpdate, setLastLeaderboardUpdate] = useState<Date | null>(null)
+  const [deleteError, setDeleteError] = useState("")
+  const [deletingPlayerId, setDeletingPlayerId] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -151,7 +154,7 @@ export default function AdminPortalPage() {
   useEffect(() => {
     if (!isAuthenticated) return
     setLeaderboardError("")
-    const usersRef = collection(db, "users")
+    const usersRef = collection(db, "players")
     const leaderboardQuery = query(usersRef)
 
     const unsubscribe = onSnapshot(
@@ -159,8 +162,18 @@ export default function AdminPortalPage() {
       (snapshot) => {
         const records = snapshot.docs.map<PlayerRecord>((docSnapshot) => {
           const data = docSnapshot.data()
-          const completedChallenges = Array.isArray(data.completedChallenges) ? data.completedChallenges.length : 0
-          const completedQuestions = Array.isArray(data.completedQuestions) ? data.completedQuestions.length : 0
+          const completedChallenges =
+            typeof data.completedChallengesCount === "number"
+              ? data.completedChallengesCount
+              : Array.isArray(data.completedChallenges)
+                ? data.completedChallenges.length
+                : 0
+          const completedQuestions =
+            typeof data.completedQuestionsCount === "number"
+              ? data.completedQuestionsCount
+              : Array.isArray(data.completedQuestions)
+                ? data.completedQuestions.length
+                : 0
           const lastActiveAt = timestampToDate(data.lastActiveAt)
           const lastFlagAt = timestampToDate(data.lastFlagAt)
           const rawStatus = typeof data.status === "string" ? data.status : undefined
@@ -192,7 +205,7 @@ export default function AdminPortalPage() {
           return bTime - aTime
         })
 
-  setLeaderboardData(records)
+        setLeaderboardData(records)
         setLeaderboardReady(true)
         setLastLeaderboardUpdate(new Date())
       },
@@ -307,6 +320,28 @@ export default function AdminPortalPage() {
         .sort((a, b) => (b.lastFlagAt?.getTime() ?? 0) - (a.lastFlagAt?.getTime() ?? 0))
         .slice(0, 6),
     [leaderboardData],
+  )
+
+  const handleDeletePlayer = useCallback(
+    async (player: PlayerRecord) => {
+      if (deletingPlayerId) return
+      const confirmed = typeof window === "undefined" ? true : window.confirm(`Delete ${player.name}?`)
+      if (!confirmed) return
+      setDeleteError("")
+      setDeletingPlayerId(player.id)
+      try {
+        await Promise.all([
+          deleteDoc(doc(db, "players", player.id)),
+          deleteDoc(doc(db, "users", player.id)),
+        ])
+      } catch (error) {
+        console.error("Failed to delete player", error)
+        setDeleteError("Deletion failed. Check Firestore permissions and try again.")
+      } finally {
+        setDeletingPlayerId(null)
+      }
+    },
+    [deletingPlayerId],
   )
 
   if (!sessionReady) {
@@ -593,7 +628,8 @@ export default function AdminPortalPage() {
             </CardHeader>
             <CardContent className="overflow-x-auto">
               {rosterDirectory.length ? (
-                <div className="max-h-[420px] overflow-y-auto">
+                <>
+                  <div className="max-h-[420px] overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="text-left text-muted-foreground border-b">
                       <tr>
@@ -601,7 +637,8 @@ export default function AdminPortalPage() {
                         <th className="py-2 pr-4 font-medium">Email</th>
                         <th className="py-2 pr-4 font-medium">Flags</th>
                         <th className="py-2 pr-4 font-medium">Challenges</th>
-                        <th className="py-2 font-medium">Presence</th>
+                        <th className="py-2 pr-4 font-medium">Presence</th>
+                        <th className="py-2 font-medium text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -611,7 +648,7 @@ export default function AdminPortalPage() {
                           <td className="py-3 pr-4 text-muted-foreground">{player.email}</td>
                           <td className="py-3 pr-4">{player.score}</td>
                           <td className="py-3 pr-4">{player.completedChallenges}</td>
-                          <td className="py-3">
+                          <td className="py-3 pr-4">
                             <span
                               className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${presenceBadgeClass(
                                 player.presence,
@@ -620,11 +657,24 @@ export default function AdminPortalPage() {
                               {presenceLabel(player.presence)}
                             </span>
                           </td>
+                          <td className="py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePlayer(player)}
+                              disabled={deletingPlayerId === player.id}
+                              className="inline-flex items-center gap-1 rounded-full border border-destructive px-3 py-1 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                            >
+                              <Trash2 className="size-3.5" />
+                              {deletingPlayerId === player.id ? "Deleting" : "Delete"}
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                {deleteError ? <p className="mt-3 text-sm text-destructive">{deleteError}</p> : null}
+                </>
               ) : (
                 <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
                   Waiting for the first player signup.

@@ -1,5 +1,6 @@
 import { arrayUnion, collection, doc, getDoc, getDocs, setDoc, updateDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "./firebase"
+import { updatePlayerStats } from "./players"
 
 export interface ChallengeQuestion {
   number: number
@@ -197,17 +198,24 @@ export async function markChallengeCompleted(userId: string, challengeId: string
     return { completedChallenges: [], completedQuestions: [] }
   }
 
+  const activityTimestamp = serverTimestamp()
   const userRef = doc(db, USERS_COLLECTION, userId)
   await setDoc(
     userRef,
     {
       completedChallenges: arrayUnion(challengeId),
-      lastActiveAt: serverTimestamp(),
+      lastActiveAt: activityTimestamp,
       status: "online",
     },
     { merge: true },
   )
-  return getUserProgress(userId)
+
+  const progress = await getUserProgress(userId)
+  await updatePlayerStats(userId, {
+    completedChallengesCount: progress.completedChallenges.length,
+    completedQuestionsCount: progress.completedQuestions.length,
+  })
+  return progress
 }
 
 export async function markQuestionCompleted(
@@ -220,16 +228,24 @@ export async function markQuestionCompleted(
   }
 
   const questionId = `${challengeId}-q${questionNumber}`
+  const timestamp = serverTimestamp()
   const userRef = doc(db, USERS_COLLECTION, userId)
   await setDoc(
     userRef,
     {
       completedQuestions: arrayUnion(questionId),
-      lastFlagAt: serverTimestamp(),
-      lastActiveAt: serverTimestamp(),
+      lastFlagAt: timestamp,
+      lastActiveAt: timestamp,
       status: "online",
     },
     { merge: true },
   )
-  return getUserProgress(userId)
+
+  const progress = await getUserProgress(userId)
+  await updatePlayerStats(userId, {
+    completedChallengesCount: progress.completedChallenges.length,
+    completedQuestionsCount: progress.completedQuestions.length,
+    lastFlagAt: timestamp,
+  })
+  return progress
 }
