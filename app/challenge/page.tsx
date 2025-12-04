@@ -14,6 +14,7 @@ import {
   type Challenge,
 } from "@/lib/challenges"
 import { auth } from "@/lib/firebase"
+import { usePresence } from "@/hooks/use-presence"
 
 export default function ChallengePage() {
   const router = useRouter()
@@ -34,6 +35,8 @@ export default function ChallengePage() {
   const [authReady, setAuthReady] = useState(false)
   const [flagDisplay, setFlagDisplay] = useState<string>("--")
   const flagCacheKey = useMemo(() => (userId ? `flag-count:${userId}` : null), [userId])
+  usePresence(userId || undefined, { pingIntervalMs: 4000 })
+
 
   const currentQuestion = challenge?.questions?.[questionIndex]
   const totalQuestions = challenge?.questions?.length ?? 0

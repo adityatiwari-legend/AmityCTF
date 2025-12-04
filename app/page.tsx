@@ -5,17 +5,23 @@ import { useRouter } from "next/navigation"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 
 import { auth } from "@/lib/firebase"
+import { usePresence } from "@/hooks/use-presence"
 
 export default function Home() {
   const router = useRouter()
   const [isReady, setIsReady] = useState(false)
+  const [userId, setUserId] = useState("")
+
+  usePresence(userId || undefined)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
         router.replace("/login")
+        setUserId("")
         return
       }
+      setUserId(user.uid)
       setIsReady(true)
     })
 
@@ -29,6 +35,7 @@ export default function Home() {
 
   const handleStartChallenge = () => {
     if (auth.currentUser) {
+      setUserId(auth.currentUser.uid)
       sessionStorage.removeItem(`flag-count:${auth.currentUser.uid}`)
     }
     router.push("/challenge")

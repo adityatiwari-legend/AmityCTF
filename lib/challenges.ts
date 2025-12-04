@@ -198,7 +198,15 @@ export async function markChallengeCompleted(userId: string, challengeId: string
   }
 
   const userRef = doc(db, USERS_COLLECTION, userId)
-  await setDoc(userRef, { completedChallenges: arrayUnion(challengeId) }, { merge: true })
+  await setDoc(
+    userRef,
+    {
+      completedChallenges: arrayUnion(challengeId),
+      lastActiveAt: serverTimestamp(),
+      status: "online",
+    },
+    { merge: true },
+  )
   return getUserProgress(userId)
 }
 
@@ -213,6 +221,15 @@ export async function markQuestionCompleted(
 
   const questionId = `${challengeId}-q${questionNumber}`
   const userRef = doc(db, USERS_COLLECTION, userId)
-  await setDoc(userRef, { completedQuestions: arrayUnion(questionId) }, { merge: true })
+  await setDoc(
+    userRef,
+    {
+      completedQuestions: arrayUnion(questionId),
+      lastFlagAt: serverTimestamp(),
+      lastActiveAt: serverTimestamp(),
+      status: "online",
+    },
+    { merge: true },
+  )
   return getUserProgress(userId)
 }
